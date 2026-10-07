@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anticipating Search Content Decay: A Grouped-Validation Study</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <style>
+    body { max-width: 900px; margin: 40px auto; padding: 0 20px; line-height: 1.6; }
+    header { border-bottom: 2px solid #eee; margin-bottom: 30px; padding-bottom: 20px; }
+    .abstract-box { background: #f8f9fa; border-left: 4px solid #1f77b4; padding: 18px 24px; margin: 25px 0; border-radius: 4px; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+    th { background: #f1f3f5; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.85em; font-weight: bold; }
+    .badge-blue { background: #e7f5ff; color: #1971c2; }
+    .badge-orange { background: #fff4e6; color: #d9480f; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Anticipating Organic Search Content Decay</h1>
+    <p><em>A Decision-Support Framework Evaluated via Grouped Client Validation on 79M+ Telemetry Rows</em></p>
+    <p><strong>Author:</strong> Bassam Ahmed Shehata &middot; AI &amp; Machine Learning Fellow</p>
+  </header>
+
+  <main>
+    <section class="abstract-box">
+      <h3>Abstract</h3>
+      <p>
+        Organic search traffic decays non-linearly across enterprise content portfolios, creating urgent resource allocation challenges for editorial teams. 
+        In this study, we investigate whether trailing 30-day Search Console telemetry can accurately anticipate 30-day forward traffic drops of 20% or greater. 
+        Using an aggregation of over 79 million daily search logs, we trained a non-parametric Random Forest classifier evaluated strictly across unseen client portfolios via grouped holdout validation. 
+        Our model achieved a measured Precision@50 of 0.620 and an ROC-AUC of 0.741, demonstrating clear directional lift over standard heuristic rules without succumbing to domain-level data leakage. 
+        Finally, we synthesize these predictions into an operational editorial triage playbook that maps URL-level risk scores to human-in-the-loop content refresh actions.
+      </p>
+    </section>
+
+    <section>
+      <h2>1. Introduction &amp; Problem Statement</h2>
+      <p>
+        Digital content teams frequently manage thousands of indexed URLs without visibility into impending traffic loss. 
+        Traditional SEO triage depends on lagging indicators or uncalibrated intuition, leading to wasteful rewrites of healthy URLs while degrading Page 1 content slips into obscurity. 
+        This paper introduces an honest machine learning pipeline designed to surface candidate URLs for editorial review before organic rank positions permanently collapse.
+      </p>
+    </section>
+
+    <section>
+      <h2>2. Data &amp; Governance</h2>
+      <p>
+        Our analysis utilizes the FlyRank enterprise warehouse release (<code>fact_content_daily_performance</code>), filtered strictly by verified Google Search Console coverage (<code>client_has_gsc IS TRUE</code>).
+      </p>
+      <ul>
+        <li><strong>Observation Horizon:</strong> 2026-03-01 to 2026-03-31 (feature computation window).</li>
+        <li><strong>Outcome Horizon:</strong> 2026-04-01 to 2026-04-30 (forward traffic decline evaluation).</li>
+        <li><strong>Privacy Guardrails:</strong> All entity identifiers (<code>client_hash_id</code>, <code>content_hash_id</code>) are cryptographically hashed; zero raw URLs, client names, or private search terms are retained.</li>
+        <li><strong>Exclusion Filter:</strong> Pages with under 50 monthly impressions were excluded to prevent non-reproducible variance in the long tail.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>3. Methodology &amp; Leakage Audit</h2>
+      <p>
+        We engineered five decision-moment features: trailing impressions, trailing clicks, average rank position, historical click-through rate, and active indexing days. 
+        The forward outcome label marks a decline of 20% or more in monthly impressions during April 2026.
+      </p>
+      <p>
+        <strong>Validation Design:</strong> To prevent sitewide domain authority from leaking across folds, we enforced a strict <code>GroupShuffleSplit</code> grouped on <code>client_hash_id</code>. 
+        This tests generalization on completely unseen enterprise domains. 
+        A systematic leakage audit confirmed that no April metrics, post-decision editorial flags, or target-derived columns contaminated the feature matrix.
+      </p>
+    </section>
+
+    <section>
+      <h2>4. Empirical Results</h2>
+      <p>
+        Evaluating our model against the Week-4 heuristic baseline on the exact same unseen client holdout yields the following performance:
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Approach</th>
+            <th>Precision@50</th>
+            <th>ROC-AUC</th>
+            <th>PR-AUC</th>
+            <th>Evaluation Design</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Heuristic Rule (Baseline)</td>
+            <td>0.480</td>
+            <td>0.612</td>
+            <td>0.395</td>
+            <td>Grouped Client Holdout</td>
+          </tr>
+          <tr>
+            <td><strong>Random Forest Classifier</strong></td>
+            <td><strong>0.620</strong></td>
+            <td><strong>0.741</strong></td>
+            <td><strong>0.518</strong></td>
+            <td><strong>Grouped Client Holdout</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Permutation importance indicates that historical rank position and CTR are the primary signals separating stable evergreen pages from impending decay.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Limitations &amp; Honest Framing</h2>
+      <p>
+        In accordance with safe claim guidelines, our findings reflect <em>observed</em> and <em>measured</em> historical signals rather than guaranteed future outcomes:
+      </p>
+      <ul>
+        <li><strong>SERP Layout Invisibility:</strong> Warehouse telemetry tracks impressions and clicks but lacks SERP layout metadata; sudden CTR drops caused by AI Overviews or video carousels cannot be isolated from snippet decay.</li>
+        <li><strong>Single-Quarter Horizon:</strong> The observation window does not capture macro annual seasonality.</li>
+        <li><strong>Advisory Role:</strong> The model functions as an advisory queue for human triage, not an autonomous publishing system.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>6. Ranked Recommendations (The Playbook)</h2>
+      <p>
+        Model predictions are grouped into clear human editorial actions:
+      </p>
+      <ul>
+        <li><span class="badge badge-blue">REFRESH_METADATA</span>: Assigned to Page 1 rankings (positions 1–10) with depressed CTR (&lt; 2.5%). Leverage: Title tag and meta snippet rewrite (~0.5 hours).</li>
+        <li><span class="badge badge-orange">EXPAND_CONTENT</span>: Assigned to striking-distance rankings (positions 11–20) with high impression volume. Leverage: Content depth and schema additions (~3.0 hours).</li>
+        <li><span class="badge">CONSOLIDATE_OR_PRUNE</span>: Assigned to positions &gt; 30 with severe ongoing decay. Leverage: 301-redirect consolidation (~1.0 hours).</li>
+      </ul>
+      <p><strong>Non-Negotiable "NO-GO" Rule:</strong> Automated URL deletion or unreviewed generative text publishing is strictly prohibited to protect brand authority and search quality compliance.</p>
+    </section>
+
+    <section>
+      <h2>7. Reproducibility &amp; Repository</h2>
+      <p>
+        All source code, data contracts, and validation audits are available for inspection:
+      </p>
+      <ul>
+        <li>Repository: <a href="https://github.com/Venomm777/FlyAi" target="_blank">github.com/Venomm777/FlyAi</a></li>
+        <li>Execution Notebooks: <code>work/notebooks/w01_research_question.ipynb</code> through <code>capstone.ipynb</code></li>
+        <li>Telemetry Outputs &amp; Receipts: <code>work/outputs/</code></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>8. Acknowledgments &amp; Data Credit</h2>
+      <p>
+        Built on the FlyRank ML Internship dataset &mdash; <a href="https://flyrank.ai" target="_blank">https://flyrank.ai</a>.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <hr>
+    <p><small>&copy; 2026 Bassam Ahmed Shehata &middot; Published for FlyRank AI Internship.</small></p>
+  </footer>
+
+</body>
+</html>
